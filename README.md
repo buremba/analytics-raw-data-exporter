@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/buremba/rakam-data-importer.svg?branch=master)](https://travis-ci.org/buremba/rakam-data-importer)
+
 # rakam-data-importer
 Import data from external analytics services to Rakam
 

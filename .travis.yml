@@ -1,0 +1,16 @@
+sudo: false
+language: java
+jdk:
+- oraclejdk8
+addons:
+  apt:
+    packages:
+    - oracle-java8-installer
+deploy:
+  provider: releases
+  file_glob: true
+  api_key:
+    secure: bx2++WdAYS643ph6RMTlLdx4Gnm7jgxtjbFQAm3reEDXlSLR6TJRE3kpxDCJwY60zRVWVqyBx56Y8gy782Ltp/peq6eKsUzVP3k3qjgH5EOeY6OHGgtNQGIL2Nd0eXLV6uIh5DoA8Abdxzv68MRDuA/XFX+TtPB0P6LOYL1HdPv/8elTXhMEKBhKlpNvvSXXkNX/JCpKYAbmxClYnlM7LfUBfZNKIQaHW+4hIyFUB3ogpDqwtJtlGoodoqpKVr1dqNK1UKaj8FsfWozyZArbXKa7S4vgimDZEZIUgRgak5/cQac+unKktVwVdzXJgMnCOGASfdjhOpDVgR6jtlTAu3XaF+ycK54BFqp361X2zwciW1Vt8gkatXBrWTPltj9rRsvlc39p8udsBhC/dZrXb+CmycM1LPg+cK3ZCylEbwYam2pJZ1TUCG+kFSlHcOPQe/sBxCIeJJKfu23xHpKXDNf4t255PT2gojFx85jPCtrAK2dmOsoh/nr33p+RCqCMMTop4ez65ngOYMjmjt4A0ie5u0UJ64dNYT9g1tSmmPuMwE66ehvNgU2A2hh2LUaqXsny+Y2aoEVhuqnM5/0dEUT0FLnHDxtpm5tNAG7bW8a0MZ1SYuJENSXKAatSyXo5LxqfO2TTszv0UjQJigJRuoRybAi+xRw3is8uugjMuTY=
+  file: target/data-importer-*-jar-with-dependencies.jar 
+  on:
+    repo: buremba/rakam-data-importer

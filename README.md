@@ -1,7 +1,7 @@
 # rakam-data-importer
 Import data from external analytics services to Rakam
 
-You can run jar file directly from the command line and see the supported services and operations of each service.
+Download latest version from [releases](//github.com/buremba/rakam-data-importer/releases) and run the following command in order to see the supported services and operations of each service:
 
 ```bash
 java -jar data-importer-*-jar-with-dependencies.jar 

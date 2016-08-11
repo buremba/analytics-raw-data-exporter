@@ -21,9 +21,9 @@
             <version>0.7</version>
         </dependency>
         <dependency>
-            <groupId>org.rakam</groupId>
+            <groupId>io.rakam</groupId>
             <artifactId>rakam-client</artifactId>
-            <version>0.1</version>
+            <version>0.5</version>
         </dependency>
         <dependency>
             <groupId>io.airlift</groupId>

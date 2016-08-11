@@ -6,12 +6,12 @@ import com.google.common.base.Throwables;
 import io.airlift.airline.Command;
 import io.airlift.airline.Option;
 import io.airlift.log.Logger;
-import org.rakam.ApiClient;
-import org.rakam.ApiException;
-import org.rakam.auth.ApiKeyAuth;
-import org.rakam.client.api.UserApi;
-import org.rakam.client.model.SchemaField;
-import org.rakam.client.model.UserHttpServiceBatchCreate;
+import io.rakam.ApiClient;
+import io.rakam.ApiException;
+import io.rakam.auth.ApiKeyAuth;
+import io.rakam.client.api.UserApi;
+import io.rakam.client.model.SchemaField;
+import io.rakam.client.model.UserCreateUsers;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,9 +34,6 @@ public class MixpanelPeopleImporter implements Runnable {
 
     @Option(name="--rakam.address", description = "Rakam cluster url", required = true)
     public String rakamAddress;
-
-    @Option(name="--rakam.project", description = "Rakam cluster url", required = true)
-    public String rakamProject;
 
     @Option(name="--mixpanel.project.timezone", description = "Rakam cluster url", required = true)
     public Integer projectTimezone;
@@ -94,13 +91,13 @@ public class MixpanelPeopleImporter implements Runnable {
         UserApi userApi = new UserApi(apiClient);
 
         try {
-            mixpanelEventImporter.importPeopleFromMixpanel(rakamProject, fields, lastSeenDate,
+            mixpanelEventImporter.importPeopleFromMixpanel(fields, lastSeenDate,
                     (users) -> {
-                        UserHttpServiceBatchCreate createReq = new UserHttpServiceBatchCreate();
-                        createReq.setProject(rakamProject);
+                        UserCreateUsers createReq = new UserCreateUsers();
                         createReq.setUsers(users);
+
                         try {
-                            userApi.batchCreate(createReq);
+                            userApi.createUsers(createReq);
                         } catch (ApiException e) {
                             LOGGER.error(e);
                         }

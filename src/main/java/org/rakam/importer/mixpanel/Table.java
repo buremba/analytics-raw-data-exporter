@@ -2,7 +2,7 @@ package org.rakam.importer.mixpanel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.rakam.client.model.SchemaField;
+import io.rakam.client.model.SchemaField;
 
 import java.util.Map;
 

@@ -95,4 +95,18 @@
             </plugin>
         </plugins>
     </build>
+
+    <scm>
+        <connection>scm:git:https://github.com/buremba/rakam-data-importer.git</connection>
+        <developerConnection>scm:git:git@github.com:buremba/rakam-data-importer.git</developerConnection>
+        <url>https://github.com/buremba/rakam-data-importer</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>bintray-repo-maven</id>
+            <url>https://api.bintray.com/maven/buremba/maven/rakam-data-importer/;publish=1</url>
+        </repository>
+    </distributionManagement>
 </project>

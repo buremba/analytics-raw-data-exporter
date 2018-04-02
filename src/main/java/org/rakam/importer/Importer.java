@@ -2,6 +2,7 @@ package org.rakam.importer;
 
 import io.airlift.airline.Cli;
 import io.airlift.airline.Help;
+import org.rakam.importer.amplitude.AmplitudeEventImporter;
 import org.rakam.importer.mixpanel.MixpanelEventExplainer;
 import org.rakam.importer.mixpanel.MixpanelEventImporter;
 import org.rakam.importer.mixpanel.MixpanelPeopleExplainer;
@@ -17,6 +18,10 @@ public class Importer {
         builder.withGroup("mixpanel")
                 .withDefaultCommand(Help.class)
                 .withCommands(MixpanelEventImporter.class, MixpanelEventExplainer.class, MixpanelPeopleImporter.class, MixpanelPeopleExplainer.class);
+
+        builder.withGroup("amplitude")
+                .withDefaultCommand(Help.class)
+                .withCommands(AmplitudeEventImporter.class);
 
         Cli<Runnable> gitParser = builder.build();
 

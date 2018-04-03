@@ -1,15 +1,15 @@
 package org.rakam.importer.amplitude;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.ByteStreams;
 import io.airlift.airline.Command;
 import io.airlift.airline.Option;
 import io.airlift.log.Logger;
-import io.rakam.ApiClient;
-import io.rakam.ApiException;
-import io.rakam.auth.ApiKeyAuth;
-import io.rakam.client.api.CollectApi;
-import io.rakam.client.model.EventContext;
-import io.rakam.client.model.EventList;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -23,14 +23,18 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Command(name = "import-events", description = "Amplitude importer")
 public class AmplitudeEventImporter
         implements Runnable
 {
+    final static ObjectMapper mapper = new ObjectMapper();
+
     private final static Logger LOGGER = Logger.get(AmplitudeEventImporter.class);
 
     @Option(name = "--amplitude.api-key", description = "Api key", required = true)
@@ -64,11 +68,10 @@ public class AmplitudeEventImporter
     public void run()
     {
         AmplitudeImporter amplitudeImporter = new AmplitudeImporter(apiKey, apiSecret);
-        ApiClient apiClient = new ApiClient();
-        ((ApiKeyAuth) apiClient.getAuthentication("write_key")).setApiKey(rakamMasterKey);
-
-        apiClient.setBasePath(rakamAddress);
-        CollectApi eventApi = new CollectApi(apiClient);
+        OkHttpClient client = new OkHttpClient.Builder()
+                .writeTimeout(0, TimeUnit.MINUTES)
+                .connectTimeout(5, TimeUnit.MINUTES)
+                .readTimeout(5, TimeUnit.MINUTES).build();
 
         LocalDate start = null, end = null;
         if (startDate != null) {
@@ -126,19 +129,28 @@ public class AmplitudeEventImporter
                 Map.Entry<LocalDateTime, LocalDateTime> task = result.getKey().get(i);
                 amplitudeImporter.importEvents(task.getKey(), task.getValue(),
                         (events) -> {
-//                            if (true) { return; }
-                            EventContext context = new EventContext();
-                            context.setApiKey(rakamMasterKey);
+                            HashMap<Object, Object> context = new HashMap<>();
+                            context.put("api_key", rakamMasterKey);
 
-                            EventList eventList = new EventList();
-                            eventList.setApi(context);
-                            eventList.setEvents(events);
+                            HashMap<Object, Object> eventList = new HashMap<>();
+                            eventList.put("api", context);
+                            eventList.put("events", events);
 
                             try {
-                                eventApi.bulkEvents(eventList);
+                                MediaType mediaType = MediaType.parse("application/json");
+                                RequestBody body = RequestBody.create(mediaType, mapper.writeValueAsBytes(eventList));
+                                Request request = new Request.Builder()
+                                        .url(rakamAddress + "/event/bulk")
+                                        .post(body)
+                                        .build();
+
+                                Response response = client.newCall(request).execute();
+                                if (response.code() != 200) {
+                                    throw new RuntimeException(response.body().string());
+                                }
                             }
-                            catch (ApiException e) {
-                                LOGGER.error(e);
+                            catch (IOException e) {
+                                throw new RuntimeException(e);
                             }
                         }, rakamBatchSize);
             }

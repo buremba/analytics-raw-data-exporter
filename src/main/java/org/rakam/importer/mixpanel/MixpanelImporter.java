@@ -211,7 +211,7 @@ public class MixpanelImporter
 
         LOGGER.info("Mixpanel returned events performed between %s and %s. Started processing data and sending to Rakam..",
                 ISO_DATE.format(startDate), ISO_DATE.format(endDate));
-        Event[] batchRecords = new Event[10000];
+//        Event[] batchRecords = new Event[10000];
 
         for (int i = 0; i < batchRecords.length; i++) {
             Event event = batchRecords[i] = new Event();
@@ -222,15 +222,15 @@ public class MixpanelImporter
         int idx = 0, batch = 0;
         while (scanner.hasNext()) {
             MixpanelEvent read = mapper.readValue(scanner.next(), MixpanelEvent.class);
-            Map record = (Map) batchRecords[idx++].getProperties();
+//            Map record = (Map) batchRecords[idx++].getProperties();
 
             for (Map.Entry<String, Object> entry : read.properties.entrySet()) {
-                if (idx == batchRecords.length) {
-                    LOGGER.info("Sending event batch to Rakam. Offset: %d, Current Batch: %d",
-                            batch++ * batchRecords.length, batchRecords.length);
-                    consumer.accept(Arrays.asList(batchRecords));
-                    idx = 0;
-                }
+//                if (idx == batchRecords.length) {
+//                    LOGGER.info("Sending event batch to Rakam. Offset: %d, Current Batch: %d",
+//                            batch++ * batchRecords.length, batchRecords.length);
+//                    consumer.accept(Arrays.asList(batchRecords));
+//                    idx = 0;
+//                }
 
                 Object value;
                 if (entry.getKey().equals("time")) {
@@ -250,7 +250,7 @@ public class MixpanelImporter
                     if (schemaField == null) {
                         continue;
                     }
-                    record.put(schemaField.getName(), value);
+//                    record.put(schemaField.getName(), value);
                 }
                 else {
                     String key = nameCache.get(entry.getKey());
@@ -261,14 +261,14 @@ public class MixpanelImporter
                         }
                         nameCache.put(entry.getKey(), key);
                     }
-                    record.put(key, value);
+//                    record.put(key, value);
                 }
             }
         }
 
-        LOGGER.info("Sending last event batch to Rakam. Offset: %d, Current Batch: %d",
-                batch * batchRecords.length, idx);
-        consumer.accept(Arrays.asList(Arrays.copyOfRange(batchRecords, 0, idx)));
+//        LOGGER.info("Sending last event batch to Rakam. Offset: %d, Current Batch: %d",
+//                batch * batchRecords.length, idx);
+//        consumer.accept(Arrays.asList(Arrays.copyOfRange(batchRecords, 0, idx)));
     }
 
     public void importPeopleFromMixpanel(Map<String, SchemaField> properties, LocalDate lastSeen, Consumer<List<User>> consumer)

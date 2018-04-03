@@ -28,3 +28,4 @@ project/plugins/project/
 .scala_dependencies
 
 git.properties
+config.properties

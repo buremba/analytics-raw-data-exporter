@@ -1,13 +1,12 @@
 package org.rakam.importer.amplitude;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
-import io.rakam.client.model.Event;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.rakam.importer.Event;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -32,10 +31,10 @@ import java.util.zip.GZIPInputStream;
 
 import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static org.rakam.importer.amplitude.AmplitudeEventImporter.generateRequest;
+import static org.rakam.importer.amplitude.AmplitudeEventImporter.mapper;
 
 public class AmplitudeImporter
 {
-    private final static ObjectMapper mapper = new ObjectMapper();
     DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'H");
 
     private final static Logger LOGGER = Logger.get(AmplitudeImporter.class);
@@ -125,7 +124,7 @@ public class AmplitudeImporter
         Event[] batchRecords = new Event[rakamBatch];
         for (int i = 0; i < batchRecords.length; i++) {
             Event event = batchRecords[i] = new Event();
-            event.setProperties(new HashMap<>());
+            event.properties = new HashMap<>();
         }
 
         int idx = 0, batch = 0;
@@ -153,10 +152,10 @@ public class AmplitudeImporter
 
                 Event event = batchRecords[idx++];
 
-                event.setCollection(read.event_type != null ? read.event_type : read.amplitude_event_type);
+                event.collection = read.event_type != null ? read.event_type : read.amplitude_event_type;
 
                 Map<String, Object> record = new HashMap<>();
-                event.setProperties(record);
+                event.properties = record;
 
                 if (read.revenue != null) {
                     record.put("revenue", read.device_carrier);

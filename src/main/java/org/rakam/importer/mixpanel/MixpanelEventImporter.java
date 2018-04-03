@@ -8,13 +8,6 @@ import io.airlift.airline.Arguments;
 import io.airlift.airline.Command;
 import io.airlift.airline.Option;
 import io.airlift.log.Logger;
-import io.rakam.ApiClient;
-import io.rakam.ApiException;
-import io.rakam.auth.ApiKeyAuth;
-import io.rakam.client.api.CollectApi;
-import io.rakam.client.api.EventexplorerApi;
-import io.rakam.client.model.EventContext;
-import io.rakam.client.model.EventList;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.File;
@@ -104,12 +97,6 @@ public class MixpanelEventImporter implements Runnable {
             fields = null;
         }
 
-        ApiClient apiClient = new ApiClient();
-        ((ApiKeyAuth) apiClient.getAuthentication("write_key")).setApiKey(rakamWriteKey);
-
-        apiClient.setBasePath(rakamAddress);
-        CollectApi eventApi = new CollectApi(apiClient);
-
         LocalDate start = null, end = null;
         if(startDate != null) {
             start = LocalDate.parse(startDate);
@@ -158,11 +145,11 @@ public class MixpanelEventImporter implements Runnable {
                 try {
                     mixpanelImporter.importEventsFromMixpanel(entry.getKey(), entry.getValue().rakamCollection, entry.getValue().mapping, finalStart, finalEnd, projectTimezone,
                             (events) -> {
-                                EventContext context = new EventContext();
-                                context.setApiKey(rakamWriteKey);
-                                EventList eventList = new EventList();
-                                eventList.setApi(context);
-                                eventList.setEvents(events);
+//                                EventContext context = new EventContext();
+//                                context.setApiKey(rakamWriteKey);
+//                                EventList eventList = new EventList();
+//                                eventList.setApi(context);
+//                                eventList.setEvents(events);
                             });
                 } catch (Exception e) {
                     LOGGER.error(e, "Unable to import collection "+entry.getKey());
@@ -174,18 +161,18 @@ public class MixpanelEventImporter implements Runnable {
                     try {
                         mixpanelImporter.importEventsFromMixpanel(collection, convertRakamName(collection), null, finalStart, finalEnd, projectTimezone,
                                 (events) -> {
-                                    EventContext context = new EventContext();
-                                    context.setApiKey(rakamWriteKey);
-
-                                    EventList eventList = new EventList();
-                                    eventList.setApi(context);
-                                    eventList.setEvents(events);
-
-                                    try {
-                                        eventApi.batchEvents(eventList);
-                                    } catch (ApiException e) {
-                                        LOGGER.error(e);
-                                    }
+//                                    EventContext context = new EventContext();
+//                                    context.setApiKey(rakamWriteKey);
+//
+//                                    EventList eventList = new EventList();
+//                                    eventList.setApi(context);
+//                                    eventList.setEvents(events);
+//
+//                                    try {
+//                                        eventApi.batchEvents(eventList);
+//                                    } catch (ApiException e) {
+//                                        LOGGER.error(e);
+//                                    }
                                 });
                     } catch (Exception e) {
                         LOGGER.error(e, "Unable to import collection "+collection);

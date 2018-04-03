@@ -1,5 +1,6 @@
 package org.rakam.importer.amplitude;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.ByteStreams;
 import io.airlift.airline.Command;
@@ -70,8 +71,8 @@ public class AmplitudeEventImporter
         AmplitudeImporter amplitudeImporter = new AmplitudeImporter(apiKey, apiSecret);
         OkHttpClient client = new OkHttpClient.Builder()
                 .writeTimeout(0, TimeUnit.MINUTES)
-                .connectTimeout(5, TimeUnit.MINUTES)
-                .readTimeout(5, TimeUnit.MINUTES).build();
+                .connectTimeout(30, TimeUnit.MINUTES)
+                .readTimeout(30, TimeUnit.MINUTES).build();
 
         LocalDate start = null, end = null;
         if (startDate != null) {
@@ -117,46 +118,67 @@ public class AmplitudeEventImporter
         final LocalDate finalStart = start;
         final LocalDate finalEnd = end;
 
+        Map.Entry<List<Map.Entry<LocalDateTime, LocalDateTime>>, Long> result = amplitudeImporter.getTasks(finalStart.atStartOfDay(), finalEnd.atStartOfDay(), amplitudeBatchSize);
+
+        LOGGER.info("We have %d tasks for fetching %d events from Amplitude.", result.getKey().size(), result.getValue());
+        for (int i = 0; i < result.getKey().size(); i++) {
+            if (i > 0) {
+                LOGGER.info("%d tasks are done. Remaining tasks: %d.", i, result.getKey().size() - i);
+            }
+            Map.Entry<LocalDateTime, LocalDateTime> task = result.getKey().get(i);
+            amplitudeImporter.importEvents(task.getKey(), task.getValue(),
+                    (events) -> {
+                        HashMap<Object, Object> context = new HashMap<>();
+                        context.put("api_key", rakamMasterKey);
+
+                        HashMap<Object, Object> eventList = new HashMap<>();
+                        eventList.put("api", context);
+                        eventList.put("events", events);
+                        byte[] content;
+                        try {
+                            content = mapper.writeValueAsBytes(eventList);
+                        }
+                        catch (JsonProcessingException e) {
+                            throw new RuntimeException(e);
+                        }
+                        tryRakam(client, content, 3);
+                    }, rakamBatchSize);
+        }
+    }
+
+    private void tryRakam(OkHttpClient client, byte[] content, int tryCount)
+    {
         try {
+            MediaType mediaType = MediaType.parse("application/json");
+            RequestBody body = RequestBody.create(mediaType, content);
+            Request request = new Request.Builder()
+                    .url(rakamAddress + "/event/bulk")
+                    .post(body)
+                    .build();
 
-            Map.Entry<List<Map.Entry<LocalDateTime, LocalDateTime>>, Long> result = amplitudeImporter.getTasks(finalStart.atStartOfDay(), finalEnd.atStartOfDay(), amplitudeBatchSize);
-
-            LOGGER.info("We have %d tasks for fetching %d events from Amplitude.", result.getKey().size(), result.getValue());
-            for (int i = 0; i < result.getKey().size(); i++) {
-                if (i > 0) {
-                    LOGGER.info("%d tasks are done. Remaining tasks: %d.", i, result.getKey().size() - i);
-                }
-                Map.Entry<LocalDateTime, LocalDateTime> task = result.getKey().get(i);
-                amplitudeImporter.importEvents(task.getKey(), task.getValue(),
-                        (events) -> {
-                            HashMap<Object, Object> context = new HashMap<>();
-                            context.put("api_key", rakamMasterKey);
-
-                            HashMap<Object, Object> eventList = new HashMap<>();
-                            eventList.put("api", context);
-                            eventList.put("events", events);
-
-                            try {
-                                MediaType mediaType = MediaType.parse("application/json");
-                                RequestBody body = RequestBody.create(mediaType, mapper.writeValueAsBytes(eventList));
-                                Request request = new Request.Builder()
-                                        .url(rakamAddress + "/event/bulk")
-                                        .post(body)
-                                        .build();
-
-                                Response response = client.newCall(request).execute();
-                                if (response.code() != 200) {
-                                    throw new RuntimeException(response.body().string());
-                                }
-                            }
-                            catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }, rakamBatchSize);
+            Response response = client.newCall(request).execute();
+            if (response.code() != 200) {
+                throw new RuntimeException(response.body().string());
             }
         }
         catch (IOException e) {
-            e.printStackTrace();
+            if (tryCount == 0) {
+                throw new RuntimeException(e);
+            }
+            tryRakam(client, content, tryCount - 1);
+        }
+    }
+
+    public static InputStream generateRequest(String apiKey, String secretKey, Map<String, String> build, int tryCount)
+    {
+        try {
+            return generateRequest(apiKey, secretKey, build);
+        }
+        catch (Exception e) {
+            if (tryCount == 0) {
+                throw new RuntimeException(e);
+            }
+            return generateRequest(apiKey, secretKey, build, tryCount - 1);
         }
     }
 

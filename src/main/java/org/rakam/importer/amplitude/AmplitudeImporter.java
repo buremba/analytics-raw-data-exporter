@@ -2,7 +2,6 @@ package org.rakam.importer.amplitude;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
@@ -10,6 +9,7 @@ import org.rakam.importer.Event;
 
 import javax.net.ssl.HttpsURLConnection;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -29,6 +29,7 @@ import java.util.Scanner;
 import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 
+import static com.google.common.io.ByteStreams.toByteArray;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static org.rakam.importer.amplitude.AmplitudeEventImporter.generateRequest;
 import static org.rakam.importer.amplitude.AmplitudeEventImporter.mapper;
@@ -49,13 +50,14 @@ public class AmplitudeImporter
     }
 
     public Map.Entry<List<Map.Entry<LocalDateTime, LocalDateTime>>, Long> getTasks(LocalDateTime startDate, LocalDateTime endDate, int maxBatchSize)
-            throws IOException
     {
-        HttpsURLConnection connection = (HttpsURLConnection) new URL("https://amplitude.com/api/2/events/segmentation?e={%22event_type%22:%22_all%22}&i=30&m=totals&start=" + DATE_FORMAT.format(startDate) + "&end=" + DATE_FORMAT.format(endDate)).openConnection();
+        HttpsURLConnection connection = null;
 
         try {
+            connection = (HttpsURLConnection) new URL("https://amplitude.com/api/2/events/segmentation?e={%22event_type%22:%22_all%22}&i=30&m=totals&start=" + DATE_FORMAT.format(startDate) + "&end=" + DATE_FORMAT.format(endDate)).openConnection();
+
             connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((apiKey + ":" + secretKey).getBytes(StandardCharsets.UTF_8)));
-            JsonNode node = mapper.readTree(ByteStreams.toByteArray(connection.getInputStream()));
+            JsonNode node = mapper.readTree(toByteArray(connection.getInputStream()));
             Iterator<JsonNode> values = node.get("data").get("series").get(0).elements();
             long total = node.get("data").get("seriesCollapsed").get(0).get(0).get("value").asLong();
             Iterator<JsonNode> keys = node.get("data").get("xValues").elements();
@@ -103,12 +105,16 @@ public class AmplitudeImporter
             return new SimpleImmutableEntry<>(objects, total);
         }
         catch (IOException e) {
-            throw new RuntimeException(new String(ByteStreams.toByteArray(connection.getErrorStream())), e);
+            try {
+                throw new RuntimeException(new String(toByteArray(connection.getErrorStream())), e);
+            }
+            catch (IOException e1) {
+                throw new RuntimeException(e1);
+            }
         }
     }
 
     public void importEvents(LocalDateTime startDate, LocalDateTime endDate, Consumer<List<Event>> consumer, int rakamBatch)
-            throws IOException
     {
         Map<String, String> build = ImmutableMap.<String, String>builder()
                 .put("start", DATE_FORMAT.format(startDate))
@@ -116,7 +122,7 @@ public class AmplitudeImporter
 
         LOGGER.info("Sending export request to Amplitude for time period %s and %s..",
                 ISO_DATE.format(startDate), ISO_DATE.format(endDate));
-        InputStream export = generateRequest(apiKey, secretKey, build);
+        InputStream export = generateRequest(apiKey, secretKey, build, 3);
         if (export == null) {
             return;
         }
@@ -128,78 +134,90 @@ public class AmplitudeImporter
         }
 
         int idx = 0, batch = 0;
+        ByteArrayInputStream inputStream;
+        try {
+            inputStream = new ByteArrayInputStream(toByteArray(export));
+        }
+        catch (IOException e) {
+            throw new RuntimeException("Error fetching data from Amplitude", e);
+        }
 
-        ZipArchiveInputStream zis = new ZipArchiveInputStream(export, "UTF-8", true, true);
+        ZipArchiveInputStream zis = new ZipArchiveInputStream(inputStream, "UTF-8", true, true);
         ArchiveEntry entry;
-        while ((entry = zis.getNextEntry()) != null) {
-            if (entry.isDirectory()) {
-                throw new IllegalStateException();
+        try {
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.isDirectory()) {
+                    throw new IllegalStateException();
+                }
+
+                LOGGER.info("Opening file %s", entry.getName());
+
+                InputStream gzipStream = new GZIPInputStream(zis);
+                Scanner scanner = new Scanner(gzipStream);
+                scanner.useDelimiter("\n");
+
+                while (scanner.hasNext()) {
+                    String next = scanner.next();
+                    AmplitudeEvent read = mapper.readValue(next, AmplitudeEvent.class);
+                    if (read.is_attribution_event) {
+                        read.user_properties.isEmpty();
+                        continue;
+                    }
+
+                    Event event = batchRecords[idx++];
+
+                    event.collection = read.event_type != null ? read.event_type : read.amplitude_event_type;
+
+                    Map<String, Object> record = new HashMap<>();
+                    event.properties = record;
+
+                    if (read.revenue != null) {
+                        record.put("revenue", read.device_carrier);
+                    }
+
+                    record.put("device_carrier", read.device_carrier);
+                    record.put("_city", read.city);
+                    record.put("_region", read.region);
+                    record.put("_country", read.country);
+                    record.put("_user", read.user_id);
+                    record.put("id", read.uuid);
+                    record.put("_time", read.event_time);
+                    record.put("_platform", read.platform);
+                    record.put("_os_version", read.os_version);
+                    record.put("__ip", read.ip_address);
+                    record.put("_library", read.library);
+                    record.put("device_type", read.device_type);
+                    record.put("device_manufacturer", read.device_manufacturer);
+                    record.put("_longitude", read.location_lng);
+                    record.put("_latitude", read.location_lat);
+                    record.put("os_name", read.os_name);
+                    record.put("device_brand", read.device_brand);
+                    record.put("os_name", read.os_name);
+                    record.put("device_id", read.device_id);
+                    record.put("language", read.language);
+                    record.put("device_model", read.device_model);
+                    record.put("adid", read.adid);
+                    record.put("session_id", read.session_id);
+                    record.put("device_family", read.device_family);
+                    record.put("idfa", read.idfa);
+                    record.put("dma", read.dma);
+
+                    for (Map.Entry<String, Object> item : read.event_properties.entrySet()) {
+                        record.put(item.getKey(), item.getValue());
+                    }
+
+                    if (idx == batchRecords.length) {
+                        LOGGER.info("Sending event batch to Rakam. Offset: %d, Current Batch: %d",
+                                batch * batchRecords.length, idx);
+                        batch++;
+                        idx = 0;
+                        consumer.accept(Arrays.asList(batchRecords));
+                    }
+                }
             }
-
-            LOGGER.info("Opening file %s", entry.getName());
-
-            InputStream gzipStream = new GZIPInputStream(zis);
-            Scanner scanner = new Scanner(gzipStream);
-            scanner.useDelimiter("\n");
-
-            while (scanner.hasNext()) {
-                String next = scanner.next();
-                AmplitudeEvent read = mapper.readValue(next, AmplitudeEvent.class);
-                if (read.is_attribution_event) {
-                    read.user_properties.isEmpty();
-                    continue;
-                }
-
-                Event event = batchRecords[idx++];
-
-                event.collection = read.event_type != null ? read.event_type : read.amplitude_event_type;
-
-                Map<String, Object> record = new HashMap<>();
-                event.properties = record;
-
-                if (read.revenue != null) {
-                    record.put("revenue", read.device_carrier);
-                }
-
-                record.put("device_carrier", read.device_carrier);
-                record.put("_city", read.city);
-                record.put("_region", read.region);
-                record.put("_country", read.country);
-                record.put("_user", read.user_id);
-                record.put("id", read.uuid);
-                record.put("_time", read.event_time);
-                record.put("_platform", read.platform);
-                record.put("_os_version", read.os_version);
-                record.put("__ip", read.ip_address);
-                record.put("_library", read.library);
-                record.put("device_type", read.device_type);
-                record.put("device_manufacturer", read.device_manufacturer);
-                record.put("_longitude", read.location_lng);
-                record.put("_latitude", read.location_lat);
-                record.put("os_name", read.os_name);
-                record.put("device_brand", read.device_brand);
-                record.put("os_name", read.os_name);
-                record.put("device_id", read.device_id);
-                record.put("language", read.language);
-                record.put("device_model", read.device_model);
-                record.put("adid", read.adid);
-                record.put("session_id", read.session_id);
-                record.put("device_family", read.device_family);
-                record.put("idfa", read.idfa);
-                record.put("dma", read.dma);
-
-                for (Map.Entry<String, Object> item : read.event_properties.entrySet()) {
-                    record.put(item.getKey(), item.getValue());
-                }
-
-                if (idx == batchRecords.length) {
-                    LOGGER.info("Sending event batch to Rakam. Offset: %d, Current Batch: %d",
-                            batch * batchRecords.length, idx);
-                    batch++;
-                    idx = 0;
-                    consumer.accept(Arrays.asList(batchRecords));
-                }
-            }
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
         }
 
         if (idx > 0) {

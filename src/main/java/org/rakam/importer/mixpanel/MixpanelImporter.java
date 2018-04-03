@@ -213,11 +213,11 @@ public class MixpanelImporter
                 ISO_DATE.format(startDate), ISO_DATE.format(endDate));
 //        Event[] batchRecords = new Event[10000];
 
-        for (int i = 0; i < batchRecords.length; i++) {
-            Event event = batchRecords[i] = new Event();
-            event.setCollection(rakamCollection);
-            event.setProperties(new HashMap<>());
-        }
+//        for (int i = 0; i < batchRecords.length; i++) {
+//            Event event = batchRecords[i] = new Event();
+//            event.setCollection(rakamCollection);
+//            event.setProperties(new HashMap<>());
+//        }
 
         int idx = 0, batch = 0;
         while (scanner.hasNext()) {

@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/buremba/rakam-data-importer.svg?branch=master)](https://travis-ci.org/buremba/rakam-data-importer)
 
-# rakam-data-importer
-Import data from external analytics services to Rakam
+# Data Exporter from Analytics Services
+Import data from analytics services such as Mixpanel and Amplitude and import the data to your database.
 
 Download latest version from [releases](https://github.com/buremba/rakam-data-importer/releases) and run the following command in order to see the supported services and operations of each service:
 

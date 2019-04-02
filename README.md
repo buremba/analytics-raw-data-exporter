@@ -9,7 +9,7 @@ Download latest version from [releases](https://github.com/buremba/rakam-data-im
 java -jar data-importer-*-jar-with-dependencies.jar 
 ```
 
-# Importing data from Mixpanel
+# Exporting data from Mixpanel
 
 You can import event data directly from Mixpanel and let the application handle column transformation by fetching event metadata and 
 creating appropriate fields in Rakam.

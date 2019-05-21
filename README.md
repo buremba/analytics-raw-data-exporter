@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/buremba/rakam-data-importer.svg?branch=master)](https://travis-ci.org/buremba/rakam-data-importer)
 
-# rakam-data-importer
-Import data from external analytics services to Rakam
+# Data Exporter from Analytics Services
+Import data from analytics services such as Mixpanel and Amplitude and import the data to your database.
 
 Download latest version from [releases](https://github.com/buremba/rakam-data-importer/releases) and run the following command in order to see the supported services and operations of each service:
 
@@ -9,7 +9,7 @@ Download latest version from [releases](https://github.com/buremba/rakam-data-im
 java -jar data-importer-*-jar-with-dependencies.jar 
 ```
 
-# Importing data from Mixpanel
+# Exporting data from Mixpanel
 
 You can import event data directly from Mixpanel and let the application handle column transformation by fetching event metadata and 
 creating appropriate fields in Rakam.
